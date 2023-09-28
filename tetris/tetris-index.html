@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+
+            background-color: antiquewhite;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid #333;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .board {
+            display: flex;
+            align-items: flex-start;
+            margin-top: 10px;
+        }
+
+        #board-container {
+            position: relative;
+        }
+
+        #grid-board {
+            position: absolute;
+        }
+
+        .canvas {
+            background-color: #fff;
+        }
+
+        #board-canvas {
+            position: absolute;
+            width: 300px;
+            height: 600px;
+        }
+
+        #grid-board {
+            width: 300px;
+            height: 600px;
+        }
+
+        #side-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            margin-left: 320px;
+        }
+
+        #hold-canvas {
+            position: absolute;
+        }
+
+        #grid-hold {
+            position: relative;
+        }
+
+        #next-canvas {
+            position: absolute;
+            margin-top: 100px;
+        }
+
+        #grid-next {
+            position: relative;
+            margin-top: 100px;
+        }
+
+        .controls {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        .button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .user-info {
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+    <title>Tetris Game</title>
+</head>
+
+<body>
+    <div class="game-container">
+        <h1>Tetris Game</h1>
+        <div class="board">
+            <div id="board-container">
+                <canvas id="board-canvas" class="canvas"></canvas>
+                <canvas id="grid-board"></canvas>
+            </div>
+            <div id="side-panel">
+                <div>
+                    <canvas id="hold-canvas" class="canvas"></canvas>
+                    <canvas id="grid-hold"></canvas>
+                </div>
+                <div>
+                    <canvas id="next-canvas" class="canvas"></canvas>
+                    <canvas id="grid-next"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="controls">
+            <button id="start-button" class="button">Start</button>
+            <button id="stop-button" class="button">Stop</button>
+            <button id="reset-button" class="button">Reset</button>
+        </div>
+        <div class="user-info">
+            <p>User: <span id="user-name">Player</span></p>
+            <p>Highest Score: <span id="highest-score">0</span></p>
+        </div>
+    </div>
+
+    <div>
+        <p>Shift : Rotate</p>
+        <p>Space Bar : Auto Down</p>
+        <p>Tap : Block Hold</p>
+    </div>
+
+    <script>
+        const BOARD_WITDH = 300,
+            BOARD_HEIGHT = 600,
+            HOLD_BOARD_WITDH_AND_HEIGHT = 120,
+            NEXT_BOARD_WITDH = 120,
+            NEXT_BOARD_HEIGHT = 390,
+            CELL_SIZE = 30,
+            COLS = 10,
+            ROWS = 20;
+
+        const KEYS = {
+            LEFT: "ArrowLeft",
+            RIGHT: "ArrowRight",
+            UP: "ArrowUp",
+            DOWN: "ArrowDown",
+            AUTO_DOWN: "Space",
+            HOLD: "ShiftLeft",
+            TAP: "Tab",
+            ESC: "Escape"
+        };
+
+        const SHAPES = [
+            // I
+            [
+                [
+                    [0, 0, 0, 0]
+                ],
+                [
+                    [0],
+                    [0],
+                    [0],
+                    [0]
+                ]
+
+            ],
+            // L
+            [
+                [
+                    [1, 7, 7],
+                    [1, 1, 1]
+                ],
+                [
+                    [1, 1],
+                    [1, 7],
+                    [1, 7]
+                ],
+                [
+                    [1, 1, 1],
+                    [7, 7, 1]
+                ],
+                [
+                    [7, 1],
+                    [7, 1],
+                    [1, 1]
+                ]
+            ],
+            // J
+            [
+                [
+                    [7, 7, 2],
+                    [2, 2, 2]
+                ],
+                [
+                    [2, 7],
+                    [2, 7],
+                    [2, 2]
+                ],
+                [
+                    [2, 2, 2],
+                    [2, 7, 7]
+                ],
+                [
+                    [2, 2],
+                    [2, 7],
+                    [2, 7]
+                ]
+            ],
+            // O
+            [
+                [
+                    [3, 3],
+                    [3, 3]
+                ]
+            ],
+            // S
+            [
+                [
+                    [7, 4, 4],
+                    [4, 4, 7]
+                ],
+                [
+                    [4, 7],
+                    [4, 4],
+                    [7, 4]
+                ]
+
+            ],
+            // T
+            [
+                [
+                    [7, 5, 7],
+                    [5, 5, 5]
+                ],
+                [
+                    [5, 7],
+                    [5, 5],
+                    [5, 7]
+                ],
+                [
+                    [5, 5, 5],
+                    [7, 5, 7]
+                ],
+                [
+                    [7, 5],
+                    [5, 5],
+                    [7, 5]
+                ]
+            ],
+            // Z
+            [
+                [
+                    [6, 6, 7],
+                    [7, 6, 6]
+                ],
+                [
+                    [6, 7],
+                    [6, 6],
+                    [7, 6]
+                ]
+            ]
+        ];
+
+        const SHAPES_COLOR = {
+            // I
+            0: '#FEE356',
+            // L
+            1: '#36E0FF',
+            // J
+            2: '#53D504',
+            // O
+            3: '#F8931D',
+            // S
+            4: '#C973FF',
+            // T
+            5: '#F92338',
+            // Z
+            6: '#1C76BC',
+            // BLANK
+            7: '#FFFFFF',
+            // SHADOW
+            8: '#353538'
+        };
+
+        const BLOCK_TYPE = {
+            I: 0,
+            L: 1,
+            J: 2,
+            O: 3,
+            S: 4,
+            T: 5,
+            Z: 6,
+            BLANK: 7,
+            SHADOW: 8
+        };
+
+        const RIGHT_MOVE = { x: 1, y: 0 };
+        const DOWN_MOVE = { x: 0, y: 1 };
+        const LEFT_MOVE = { x: -1, y: 0 };
+
+        const SPWAN_PLACE = {
+            x: 4,
+            y: 0,
+            shadowY: 19
+        };
+
+        const COLLISION_TYPE = {
+            COLLISION: 0,
+            NOT_COLLISION: 1,
+            BOTTOM_COLLISIOM: 2,
+            TOP_COLLISION: 3
+        };
+
+        const ROTATE_TYPE = {
+            AVLIABLE: 0,
+            NOT_AVLIABLE: 1
+        };
+
+        const GAME_STATUS = {
+            GAME_OVER: 0,
+            PLAYING: 1,
+            NOT_PLAYING: 2
+        };
+
+        var cursor = {
+            x: SPWAN_PLACE.x,
+            y: SPWAN_PLACE.y,
+            blockNumber: undefined,
+            rotateNumber: 0,
+            shadowY: SPWAN_PLACE.shadowY
+        };
+
+        const NEXT_BLOCK_PREIVEW_LENGTH = 3;
+        let intervalVariable = undefined;
+
+        class Tetris {
+            constructor(block) {
+                this.board = new Board(block);
+                this.user = new UserContol(block);
+
+                this.score = 0;
+                this.isGaming = true;
+
+                this.init();
+                this.bindKeyEvent();
+
+                this.user.reset();
+            }
+
+            init() {
+                document.getElementById('start-button').addEventListener('click', this.startGame.bind(this));
+                document.getElementById('stop-button').addEventListener('click', this.pauseGame.bind(this));
+                document.getElementById('reset-button').addEventListener('click', this.resetGame.bind(this));
+            }
+
+            bindKeyEvent() {
+                document.addEventListener("keydown", (e) => {
+                    switch (e.code) {
+                        case KEYS.UP:
+                            this.user.rotate();
+                            break;
+                        case KEYS.LEFT:
+                            this.user.left();
+                            break;
+                        case KEYS.RIGHT:
+                            this.user.right();
+                            break;
+                        case KEYS.DOWN:
+                            this.user.down();
+                            break;
+                        case KEYS.AUTO_DOWN:
+                            this.user.fullDown();
+                        case KEYS.HOLD:
+                            this.user.hold();
+                            break;
+                        case KEYS.TAP:
+                            break;
+                        case KEYS.ESC:
+                            this.user.pause();
+                            break;
+                    }
+                }, true);
+            }
+
+
+            run() {
+            }
+
+            startGame() {
+                console.log("start Game");
+                this.user.start();
+            }
+
+            pauseGame() {
+                console.log("pause Game");
+                this.user.pause();
+            }
+
+            resetGame() {
+                console.log("reset Game");
+                this.user.reset();
+            }
+
+        }
+
+        class UserContol {
+            constructor(block) {
+                this.board = new Board(block);
+                this.painter = new Painter(block);
+                this.isGaming = false;
+                this.delaySecond = 800;
+            }
+
+            left() {
+                this.board.removeBlockMatrix();
+                if (this.board.collisionCheck(LEFT_MOVE.x, LEFT_MOVE.y) != COLLISION_TYPE.NOT_COLLISION) {
+                    return false;
+                }
+
+                cursor.shadowY = this.board.getShadowY();
+                this.move(LEFT_MOVE);
+                return true;
+            }
+
+            right() {
+                this.board.removeBlockMatrix();
+                if (this.board.collisionCheck(RIGHT_MOVE.x, RIGHT_MOVE.y) != COLLISION_TYPE.NOT_COLLISION) {
+                    return false;
+                }
+
+                this.move(RIGHT_MOVE)
+                return true;
+            }
+
+            down() {
+                this.board.removeBlockMatrix();
+                if (this.board.collisionCheck(DOWN_MOVE.x, DOWN_MOVE.y) != COLLISION_TYPE.NOT_COLLISION) {
+                    return false;
+                }
+
+                this.move(DOWN_MOVE);
+                return true;
+            }
+
+            rotate() {
+                this.board.removeBlockMatrix();
+                if (this.board.collisionCheck(0, 0, this.board.block.getNextRotateNumber()) != COLLISION_TYPE.NOT_COLLISION) {
+                    return false;
+                }
+
+
+                this.painter.eraseBlock();
+                this.painter.eraseBlock(cursor.shadowY);
+
+                this.board.rotate();
+
+                this.painter.drawBlock();
+                this.painter.drawBlock(cursor.shadowY, BLOCK_TYPE.SHADOW);
+
+                return true;
+            }
+
+            hold() {
+                // this.painter.eraseBlock();
+                // this.painter.eraseBlock(cursor.shadowY);
+
+                // this.board.block.hold();
+
+                // this.newBlock();
+
+                // this.painter.drawHoldBlock();
+            }
+
+            // complete
+            move(xy) {
+                this.painter.eraseBlock();
+                this.painter.eraseBlock(cursor.shadowY);
+
+                cursor.x += xy.x;
+                cursor.y += xy.y;
+
+                this.painter.drawBlock(cursor.shadowY, BLOCK_TYPE.SHADOW);
+                this.painter.drawBlock();
+
+                this.board.insertBlockMatrix();
+            }
+
+            fullDown() {
+                while (!this.down()) { }
+            }
+
+            blockSetting() {
+                cursor.x = SPWAN_PLACE.x;
+                cursor.y = SPWAN_PLACE.y;
+                cursor.blockNumber = this.board.block.nextBlock;
+                cursor.rotateNumber = 0;
+                cursor.shadowY = this.board.getShadowY();
+            }
+
+            newBlock() {
+                this.blockSetting();
+                this.startDown();
+            }
+
+            downInterval(delay) {
+                intervalVariable = setInterval(() => {
+                    // var collisionType = this.board.collisionCheck(DOWN_MOVE.x, DOWN_MOVE.y);
+                    var collisionType = COLLISION_TYPE.NOT_COLLISION;
+
+                    // button collision 흉내
+                    if (cursor.y > 15) {
+                        console.log(cursor.blockNumber);
+                        this.stopDownInterval();
+                        this.newBlock();
+                    }
+
+                    switch (collisionType) {
+                        case COLLISION_TYPE.COLLISION:
+                            this.stopDownInterval();
+                            this.newBlock();
+                            // this.board.madeLineCheck();
+                            return;
+                        case COLLISION_TYPE.NOT_COLLISION:
+                            this.down();
+                            return;
+                        case COLLISION_TYPE.TOP_COLLISION:
+                            this.board.gameOver();
+                            this.gameOver();
+                            return;
+                        default:
+                            return;
+                    }
+
+                }, delay);
+            }
+
+            // complete
+            stopDownInterval() {
+                clearInterval(intervalVariable);
+            }
+
+            // completet
+            startDown() {
+                this.downInterval(this.delaySecond);
+            }
+
+            start() {
+                if (this.isGaming) {
+                    this.startDown();
+                    return;
+                }
+
+                this.isGaming = true;
+                this.newBlock();
+            }
+
+            pause() {
+                this.stopDownInterval();
+            }
+
+            reset() {
+                this.isGaming = false;
+                this.stopDownInterval();
+
+                this.board.createBoard();
+                this.board.block.loadNextBlockQueue();
+
+                this.board.block.holdBlockNumber = undefined;
+
+                this.board.createBoard();
+                this.painter.clear();
+                this.painter.initHoldBlock();
+                this.painter.drawNextBlock();
+            }
+
+            gameOver() {
+                console.log("게임 종료");
+                this.isGaming = false;
+            }
+        }
+
+        class Board {
+            constructor(block) {
+                this.matrix = [];
+                this.block = block;
+                this.painter = new Painter(block);
+
+                this.createBoard();
+            }
+
+            createBoard() {
+                this.matrix = [];
+
+                for (let row = 0; row < ROWS; row++) {
+                    var columnList = [];
+                    for (let col = 0; col < COLS; col++) {
+                        columnList.push(BLOCK_TYPE.BLANK);
+                    }
+                    this.matrix.push(columnList);
+                }
+
+            }
+
+            insertBlockMatrix() {
+                for (let row = 0; row < SHAPES[cursor.blockNumber][cursor.rotateNumber].length; row++) {
+                    for (let col = 0; col < SHAPES[cursor.blockNumber][cursor.rotateNumber][row].length; col++) {
+                        if (SHAPES[cursor.blockNumber][cursor.rotateNumber][row][col] == cursor.blockNumber) {
+                            this.matrix[cursor.y + row][cursor.x + col] = cursor.blockNumber;
+                        }
+                    }
+                }
+            }
+
+            removeBlockMatrix() {
+                for (let row = 0; row < SHAPES[cursor.blockNumber][cursor.rotateNumber].length; row++) {
+                    for (let col = 0; col < SHAPES[cursor.blockNumber][cursor.rotateNumber][row].length; col++) {
+                        if (SHAPES[cursor.blockNumber][cursor.rotateNumber][row][col] == cursor.blockNumber) {
+                            this.matrix[cursor.y + row][cursor.x + col] = BLOCK_TYPE.BLANK;
+                        }
+                    }
+                }
+            }
+
+            removeLineMatrix(startLine, deleteLineCount) {
+                for (let i = startLine; i > deleteLineCount - 1; i--) {
+                    this.matrix[i] = this.matrix[i - deleteLineCount];
+                }
+
+                for (let i = 0; i < deleteLineCount; i++) {
+                    this.matrix[i] = Array(10).fill(BLOCK_TYPE.BLANK);
+                }
+            }
+
+            madeLineCheck() {
+                var deleteStartLine = 0,
+                    deleteLineCount = 0,
+                    madeOneOver = false;
+
+                for (let row = ROWS - 1; row >= 0; row--) {
+                    var notMade = false;
+
+                    for (let col = 0; col < COLS; col++) {
+                        if (!this.matrix[row][col] == BLOCK_TYPE.BLANK) {
+                            notMade = true;
+                            break;
+                        }
+                    }
+
+                    if (!notMade) {
+                        madeOneOver = true;
+                        deleteLineCount++;
+                    }
+                }
+
+                if (madeOneOver) {
+                    removeLineMatrix(deleteStartLine, deleteLineCount);
+                }
+            }
+
+            /*
+                맨 오른쪽 벽충돌 감지 잘 안됨
+
+                밑에 충돌 감지가 이상함
+            */
+            collisionCheck(x, y, rotateNumber = cursor.rotateNumber) {
+                const expectX = cursor.x + x,
+                    expectY = cursor.y + y;
+
+
+                console.log("move {x : " + x + ", y : " + y + "}" + "\n" + "move {expectX : " + expectX + ", expectY : " + expectY + "}");
+
+
+                console.log(SHAPES[cursor.blockNumber][rotateNumber][0].length);
+
+                if (expectX < 0 || expectX + SHAPES[cursor.blockNumber][rotateNumber][0].length - 1 > COLS) {
+                    return COLLISION_TYPE.COLLISION;
+                }
+
+                if (expectY + SHAPES[cursor.blockNumber][rotateNumber].length > ROWS) {
+                    return COLLISION_TYPE.COLLISION;
+                }
+
+                for (let row = 0; row < SHAPES[cursor.blockNumber][rotateNumber].length; row++) {
+
+                    for (let col = 0; col < SHAPES[cursor.blockNumber][rotateNumber][row].length; col++) {
+
+                        if (SHAPES[cursor.blockNumber][rotateNumber][row][col] == cursor.blockNumber && this.matrix[expectY + row][expectX + col] == cursor.blockNumber) {
+                            if (this.matrix[expectY + row][expectX + col] != BLOCK_TYPE.BLANK) {
+                                return COLLISION_TYPE.BOTTOM_COLLISIOM;
+                            }
+
+                            return expectY == 0 ? COLLISION_TYPE.TOP_COLLISION : COLLISION_TYPE.COLLISION;
+                        }
+                    }
+                }
+
+                return COLLISION_TYPE.NOT_COLLISION;
+            }
+
+            rotate() {
+                this.removeBlockMatrix();
+                cursor.rotateNumber = this.block.getNextRotateNumber();
+                this.insertBlockMatrix();
+            }
+
+            // 요놈이 문제
+            getShadowY() {
+                // 블록의 형태와 x 좌표 확인 후 위에서 부터 스캔해서 빈곳을 체크해서 shadow가 가능한 곳의 y좌표 반환;
+                console.log(this.matrix);
+
+                // for (let boardRow = cursor.y; boardRow < ROWS; boardRow++) {
+                //     var shadowAvliable = true;
+
+                //     for (let row = 0; row < SHAPES[cursor.blockNumber][cursor.rotateNumber].length; row++) {
+                //         for (let col = 0; col < SHAPES[cursor.blockNumber][cursor.rotateNumber][row].length; col++) {
+
+                //             if (SHAPES[cursor.blockNumber][cursor.rotateNumber][row][col] == cursor.blockNumber &&
+                //                 this.matrix[row + boardRow][col + cursor.x] == cursor.blockNumber) {
+                //                 shadowAvliable = false;
+                //                 break;
+                //             }
+                //         }
+
+                //         if (!shadowAvliable) {
+                //             break;
+                //         }
+                //     }
+
+                //     if (!shadowAvliable) {
+                //         console.log(boardRow - SHAPES[cursor.blockNumber][cursor.rotateNumber].length);
+                //         return boardRow - SHAPES[cursor.blockNumber][cursor.rotateNumber].length;
+                //     }
+                // }
+
+                return ROWS - SHAPES[cursor.blockNumber][cursor.rotateNumber].length;
+            }
+        }
+
+        class Block {
+            constructor() {
+                this.nextBlockQueue = [];
+                this.nextBlock = undefined;
+                this.holdBlockNumber = 1;
+
+                this.loadNextBlockQueue();
+                this.setBlockNumber();
+            }
+
+            loadNextBlockQueue() {
+                if (this.nextBlockQueue.length > NEXT_BLOCK_PREIVEW_LENGTH) {
+                    this.nextBlockQueue = [];
+                }
+
+                for (let i = 0; i < NEXT_BLOCK_PREIVEW_LENGTH; i++) {
+                    this.nextBlockQueue.push(this.getRandomBlockNumber());
+                }
+            }
+
+            getRandomBlockNumber() {
+                return Math.floor(Math.random() * SHAPES.length);
+            }
+
+            setBlockNumber() {
+                this.nextBlock = this.nextBlockQueue[0];
+
+                for (let i = 0; i < NEXT_BLOCK_PREIVEW_LENGTH - 2; i++) {
+                    this.nextBlockQueue[i] = this.nextBlockQueue[i + 2];
+                }
+
+                this.nextBlockQueue[NEXT_BLOCK_PREIVEW_LENGTH - 1] = this.getRandomBlockNumber();
+
+            }
+
+            getNextRotateNumber() {
+                return (cursor.rotateNumber + 1) % SHAPES[cursor.blockNumber].length;
+            }
+
+            // 미완
+            hold() {
+                var oldBlockNumber = this.blockNumber;
+                this.blockNumber = newBlockNumber;
+
+                if (this.blockNumber == undefined) {
+                    return undefined;
+                }
+
+                return oldBlockNumber;
+            }
+        }
+
+        class Painter {
+
+            constructor(block) {
+                this.canvas = document.getElementById("board-canvas");
+                this.holdCanvas = document.getElementById('hold-canvas');
+                this.nextBlockCanvas = document.getElementById('next-canvas');
+
+                this.ctx = this.canvas.getContext('2d');
+                this.holdCtx = this.holdCanvas.getContext('2d');
+                this.nextCtx = this.nextBlockCanvas.getContext('2d');
+
+                this.block = block;
+
+                this.boardInit();
+            }
+
+            boardInit() {
+                this.canvas.height = BOARD_HEIGHT;
+                this.canvas.width = BOARD_WITDH;
+
+                this.holdCanvas.height = HOLD_BOARD_WITDH_AND_HEIGHT;
+                this.holdCanvas.width = HOLD_BOARD_WITDH_AND_HEIGHT;
+
+                this.nextBlockCanvas.height = NEXT_BOARD_HEIGHT;
+                this.nextBlockCanvas.width = NEXT_BOARD_WITDH;
+            }
+
+            /**
+             @Param
+             blockInfo : {
+                x : ?,
+                y : ?,
+                 : ?,
+                color : BLOCK_COLORS
+             }
+            */
+            drawBlock(shadowY = 0, blockNumber = cursor.blockNumber) {
+                this.ctx.fillStyle = SHAPES_COLOR[blockNumber];
+                const absoluteX = cursor.x * CELL_SIZE,
+                    absoluteY = (shadowY == 0 ? cursor.y : shadowY) * CELL_SIZE;
+
+                for (let row = 0; row < SHAPES[cursor.blockNumber][cursor.rotateNumber].length; row++) {
+                    const eachBlockX = row * CELL_SIZE;
+
+                    for (let col = 0; col < SHAPES[cursor.blockNumber][cursor.rotateNumber][row].length; col++) {
+                        if (SHAPES[cursor.blockNumber][cursor.rotateNumber][row][col] == cursor.blockNumber) {
+                            const eachBlockY = col * CELL_SIZE;
+
+                            this.ctx.fillRect(absoluteX + eachBlockX, absoluteY + eachBlockY, CELL_SIZE, CELL_SIZE);
+                        }
+                    }
+                }
+            }
+
+            eraseBlock(shadowY = 0) {
+                this.ctx.fillStyle = SHAPES_COLOR[BLOCK_TYPE.BLANK];
+                const absoluteX = cursor.x * CELL_SIZE,
+                    absoluteY = (shadowY == 0 ? cursor.y : shadowY) * CELL_SIZE;
+
+                console.log(SHAPES[cursor.blockNumber]);
+
+                for (let row = 0; row < SHAPES[cursor.blockNumber][cursor.rotateNumber].length; row++) {
+                    const x = row * CELL_SIZE;
+
+                    for (let col = 0; col < SHAPES[cursor.blockNumber][cursor.rotateNumber][row].length; col++) {
+                        if (SHAPES[cursor.blockNumber][cursor.rotateNumber][row][col] == cursor.blockNumber) {
+                            const y = col * CELL_SIZE;
+
+                            this.ctx.fillRect(absoluteX + x, absoluteY + y, CELL_SIZE, CELL_SIZE);
+                        }
+                    }
+                }
+            }
+
+
+            drawLine(lineNumber) {
+
+            }
+
+            /**
+            @Param
+            lineNumber
+            0 ~ 19 
+            */
+            eraseLine(lineNumber, deleteLineCount = 1) {
+                this.ctx.fillStyle = SHAPES_COLOR[BLOCK_TYPE.BLANK];
+                this.ctx.fillRect(x, y * lineNumber, CELL_SIZE * COLS, CELL_SIZE * deleteLineCount);
+            }
+
+            updateLine() {
+
+            }
+
+            initHoldBlock() {
+                this.holdCtx.clearRect(0, 0, HOLD_BOARD_WITDH_AND_HEIGHT, HOLD_BOARD_WITDH_AND_HEIGHT);
+            }
+
+            drawHoldBlock() {
+                this.initHoldBlock();
+
+                this.holdCtx.fillStyle = SHAPES_COLOR[this.block.holdBlockNumber];
+
+
+                SHAPES[this.block.holdBlockNumber][0].forEach((col, colIndex) => {
+                    const y = colIndex * CELL_SIZE;
+
+                    col.forEach((cell, rowIndex) => {
+                        const x = rowIndex * CELL_SIZE;
+
+                        if (cell != BLOCK_TYPE.BLANK) {
+                            this.holdCtx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        }
+                    });
+                });
+            }
+
+            drawNextBlock() {
+                this.nextCtx.clearRect(0, 0, NEXT_BOARD_WITDH, NEXT_BOARD_HEIGHT);
+                console.log(this.block.queue.length);
+                this.block.queue.forEach((blockNumber) => {
+                    this.nextCtx.fillStyle = SHAPES_COLOR[blockNumber];
+                    console.log(SHAPES_COLOR[blockNumber]);
+
+                    SHAPES[blockNumber][0].forEach((col, colIndex) => {
+                        const y = colIndex * CELL_SIZE;
+
+                        col.forEach((cell, rowIndex) => {
+                            const x = rowIndex * CELL_SIZE;
+
+                            if (cell != BLOCK_TYPE.BLANK) {
+                                this.nextCtx.fillRect(x, (blockNumber * CELL_SIZE) + y, CELL_SIZE, CELL_SIZE);
+                            }
+                        });
+                    });
+                });
+            }
+
+            /**
+             clear barod-cavans
+            */
+            clear() {
+                this.canvas.height = BOARD_HEIGHT;
+                this.canvas.width = BOARD_WITDH;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+        }
+
+        class Initialization {
+            /**
+             * 로컬 스토리지에서 값을 읽어와 최고점수와 유저를 매핑하는 함수
+            */
+            userNameAndScoreMapping() {
+                const highestScore = localStorage.getItem('highest-score');
+                const userName = localStorage.getItem('user-name');
+
+                if (highestScore !== null) {
+                    document.getElementById("highest-score").textContent = highestScore;
+                }
+
+                if (userName !== null) {
+                    document.getElementById("user-name").textContent = userName;
+                }
+            }
+
+            /**
+             * grid-board 배경 격자 무늬 생성 함수
+            */
+            drawGridPattern() {
+                const canvas = document.getElementById('grid-board');
+                const context = canvas.getContext('2d');
+
+                canvas.width = BOARD_WITDH;
+                canvas.height = BOARD_HEIGHT;
+
+                for (let row = 0; row < ROWS; row++) {
+                    const x = row * CELL_SIZE;
+                    for (let col = 0; col < COLS; col++) {
+                        const y = col * CELL_SIZE;
+
+                        context.strokeStyle = '#000'; // 격자 라인 색상
+                        context.strokeRect(y, x, CELL_SIZE, CELL_SIZE); // 격자 셀 그리기
+                    }
+                }
+            }
+
+            drawHoldGridPattern() {
+                const canvas = document.getElementById('grid-hold');
+                const context = canvas.getContext('2d');
+
+                canvas.width = HOLD_BOARD_WITDH_AND_HEIGHT;
+                canvas.height = HOLD_BOARD_WITDH_AND_HEIGHT;
+
+                const HOLD_COL = 4, HOLD_ROW = 4;
+
+                for (let col = 0; col < HOLD_COL; col++) {
+                    const y = col * CELL_SIZE;
+                    for (let row = 0; row < HOLD_ROW; row++) {
+                        const x = row * CELL_SIZE;
+
+                        context.strokeStyle = '#000'; // 격자 라인 색상
+                        context.strokeRect(x, y, CELL_SIZE, CELL_SIZE); // 격자 셀 그리기
+                    }
+                }
+            }
+
+            drawNextGridPattern() {
+                const canvas = document.getElementById('grid-next');
+                const context = canvas.getContext('2d');
+
+                canvas.width = NEXT_BOARD_WITDH;
+                canvas.height = NEXT_BOARD_HEIGHT;
+
+                for (let row = 0; row < ROWS; row++) {
+                    const x = row * CELL_SIZE;
+                    for (let col = 0; col < COLS; col++) {
+                        const y = col * CELL_SIZE;
+
+                        context.strokeStyle = '#000'; // 격자 라인 색상
+                        context.strokeRect(y, x, CELL_SIZE, CELL_SIZE); // 격자 셀 그리기
+                    }
+                }
+            }
+            run() {
+                this.userNameAndScoreMapping();
+                this.drawGridPattern();
+                this.drawHoldGridPattern();
+                this.drawNextGridPattern();
+            }
+        }
+
+        // 게임 인스턴스 생성 및 초기화
+        const init = new Initialization()
+        init.run();
+        var tetrisGame = new Tetris(new Block());
+    </script>
+</body>
+
+</html>
